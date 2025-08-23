@@ -13,25 +13,30 @@ class Product {
 }
 
 class ElementAttribute {
-  constructor(attrName, attrValue){
+  constructor(attrName, attrValue) {
     this.name = attrName;
     this.value = attrValue;
   }
 }
 
 class Component {
-  constructor(renderHookId){
+  constructor(renderHookId, shouldRender = true) {
     this.hookId = renderHookId;
+    if(shouldRender){
+      this.render();
+    }
   }
+
+   render() {}
 
   createRootElement(tag, cssClasses, attributes) {
     const rootElement = document.createElement(tag);
     if (cssClasses) {
       rootElement.className = cssClasses;
     }
-    if(attributes && attributes.lenght > 0){
+    if (attributes && attributes.length > 0) {
       for (const attr of attributes) {
-        rootElement.setAttribute(attr.name, attr.value);  
+        rootElement.setAttribute(attr.name, attr.value);
       }
     }
     document.getElementById(this.hookId).append(rootElement);
@@ -50,13 +55,20 @@ class ShoppingCart extends Component {
   }
 
   get totalAmount() {
-    const sum = this.items.reduce((prevValue, curItem) => {
-      return prevValue + curItem.price;
-    }, 0);
+    const sum = this.items.reduce(
+      (prevValue, curItem) => prevValue + curItem.price,
+      0
+    );
     return sum;
   }
+
   constructor(renderHookId) {
-    super(renderHookId);
+    super(renderHookId, false);
+    this.orderProducts = () => {
+    console.log('Ordering...');
+    console.log(this.items);
+  }
+  this.render();
   }
 
   addProduct(product) {
@@ -65,20 +77,26 @@ class ShoppingCart extends Component {
     this.cartItems = updatedItems;
   }
 
+  
+
   render() {
-    const cartEl = this.createRootElement('section','cart');
+    const cartEl = this.createRootElement('section', 'cart');
     cartEl.innerHTML = `
-    <h2>Total: \$${0}</h2>
-    <button>Order Now!</button>
+      <h2>Total: \$${0}</h2>
+      <button>Order Now!</button>
     `;
+    const orderButton = cartEl.querySelector('button');
+    //orderButton.addEventListener('click', () => this.orderProducts());
+    orderButton.addEventListener('click',this.orderProducts);
     this.totalOutput = cartEl.querySelector('h2');
-    return cartEl;
   }
 }
 
-class ProductItem {
-  constructor(product) {
+class ProductItem extends Component {
+  constructor(product, renderHookId) {
+    super(renderHookId, false);
     this.product = product;
+    this.render();
   }
 
   addToCart() {
@@ -86,8 +104,7 @@ class ProductItem {
   }
 
   render() {
-    const prodEl = document.createElement('li');
-    prodEl.className = 'product-item';
+    const prodEl = this.createRootElement('li', 'product-item');
     prodEl.innerHTML = `
         <div>
           <img src="${this.product.imageUrl}" alt="${this.product.title}" >
@@ -101,58 +118,71 @@ class ProductItem {
       `;
     const addCartButton = prodEl.querySelector('button');
     addCartButton.addEventListener('click', this.addToCart.bind(this));
-    return prodEl;
   }
 }
 
-class ProductList {
-  products = [
-    new Product(
-      'A Pillow',
-      'https://www.nilkamalsleep.com/cdn/shop/products/2_0a1606c6-eb22-43c7-b8ca-0a58eff0e995.jpg?v=1667222507',
-      'A soft pillow!',
-      19.99
-    ),
-    new Product(
-      'A Carpet',
-      'https://upload.wikimedia.org/wikipedia/commons/thumb/7/71/Ardabil_Carpet.jpg/397px-Ardabil_Carpet.jpg',
-      'A carpet which you might like - or not.',
-      89.99
-    ),
-  ];
-  constructor() {}
-  render() {
-    const prodList = document.createElement('ul');
-    prodList.className = 'product-list';
-    for (const prod of this.products) {
-      const productItem = new ProductItem(prod);
-      const prodEl = productItem.render();
-      prodList.append(prodEl);
+class ProductList extends Component {
+  #products = [];
+
+  constructor(renderHookId) {
+    super(renderHookId, false);
+    this.render();
+    this.#fetchProducts();
+  }
+
+  #fetchProducts() {
+    this.#products = [
+      new Product(
+        'A Pillow',
+        'https://m.media-amazon.com/images/I/813+9DJ+VaL._UF894,1000_QL80_.jpg',
+        'A soft pillow!',
+        19.99
+      ),
+      new Product(
+        'A Carpet',
+        'https://upload.wikimedia.org/wikipedia/commons/thumb/7/71/Ardabil_Carpet.jpg/397px-Ardabil_Carpet.jpg',
+        'A carpet which you might like - or not.',
+        89.99
+      ),
+    ];
+    this.renderProducts();
+  }
+
+  renderProducts() {
+    for (const prod of this.#products) {
+     new ProductItem(prod, 'prod-list');
     }
-    return prodList;
+  }
+
+  render() {
+    this.createRootElement('ul', 'product-list', [
+      new ElementAttribute('id', 'prod-list'),
+    ]);
+    if (this.#products && this.#products.length > 0){
+      this.renderProducts();
+    }
   }
 }
 
 class Shop {
-  render() {
-    const renderHook = document.getElementById('app');
-    this.cart = new ShoppingCart('app');
-    this.cart.render();
-    const productList = new ProductList();
-    const prodListEl = productList.render();
+  constructor() {
+    this.render();
+  }
 
-  
-    renderHook.append(prodListEl);
+  render() {
+    this.cart = new ShoppingCart('app');
+    new ProductList('app');
   }
 }
+
 class App {
   static cart;
 
   static init() {
     const shop = new Shop();
-    shop.render();
     this.cart = shop.cart;
   }
+
   static addProductToCart(product) {
     this.cart.addProduct(product);
   }
